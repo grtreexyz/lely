@@ -6,54 +6,10 @@ using System.Threading.Tasks;
 using ServiceStack.OrmLite;
 using System.Web;
 using System.Data;
+using System.Configuration;
 
 namespace lelyModel.DataBase
 {
-    public static class DbConnectionFactory
-    {
-        static ConcurrentDictionary<string, OrmLiteConnectionFactory> factorys = new ConcurrentDictionary<string, OrmLiteConnectionFactory>();
-
-        public static SessionConnetion Open(string db)
-        {
-            if (DbSession.InDbTrasaction)
-            {
-                return new SessionConnetion(DbSession.Current.Conn);
-            }
-            var newconn = GetFactory(db).OpenDbConnection();
-            if (newconn.State != ConnectionState.Open)
-            {
-                newconn = GetFactory(db).OpenDbConnection();
-                if (newconn.State != ConnectionState.Open)
-                {
-                    throw new AggregateException("无法从连接池中获取已打开的连接");
-                }
-            }
-            return new SessionConnetion(newconn);
-        }
-        private static OrmLiteConnectionFactory GetFactory(string db)
-        {
-            OrmLiteConnectionFactory temp;
-            if (factorys.TryGetValue(db, out temp))
-            {
-                return temp;
-            }
-            var conn = ConfigurationManager.ConnectionStrings[db];
-            switch (conn.ProviderName)
-            {
-                //case "System.Data.SqlClient":
-                //    temp = new OrmLiteConnectionFactory(conn.ConnectionString, SqlServerDialect.Provider);
-                //    break;
-                case "MySql.Data.MySqlClient":
-                    temp = new OrmLiteConnectionFactory(conn.ConnectionString, MySqlDialect.Provider);
-                    temp.AutoDisposeConnection = true;
-                    break;
-                default:
-                    throw new Exception("不支持数据库:" + db);
-            }
-            factorys.TryAdd(db, temp);
-            return temp;
-        }
-    }
     /// <summary>
     /// 数据库事务类
     /// </summary>
@@ -61,11 +17,11 @@ namespace lelyModel.DataBase
     {
         [ThreadStatic]
         static DbSession _CurrentSession;
-
+        public IDbConnection Conn { get; private set; }
+        private IDbTransaction DT;
+        private bool Commited = false;
         public static DbSession Current { get { return _CurrentSession; } }
-
         public static bool InDbTrasaction { get { return _CurrentSession != null; } }
-
         private DbSession() { }
 
         public static DbSession Begin(string db)
@@ -75,16 +31,13 @@ namespace lelyModel.DataBase
                 throw new NotSupportedException("当前已有打开的数据库事务");
             }
             var session = new DbSession();
-            session._Conn = DbConnFactory.Open(db);
-            session.DT = session._Conn.BeginTransaction();
+            session.Conn = DbConnFactory.Open(db);
+            session.DT = session.Conn.BeginTransaction();
             _CurrentSession = session;
 
             return _CurrentSession;
         }
 
-        public IDbConnection Conn { get; private set; }
-        private IDbTransaction DT;
-        private bool Commited = false;
         public void Commit()
         {
             if (Commited || DT == null || Conn == null || Conn.State != ConnectionState.Open)
@@ -118,7 +71,7 @@ namespace lelyModel.DataBase
     }
 
     /// <summary>
-    /// 
+    /// 数据库IDbConnection连接类
     /// </summary>
     public class SessionConnetion : IDisposable, IDbConnection
     {
@@ -173,6 +126,62 @@ namespace lelyModel.DataBase
         public void Open()
         {
             Conn.Open();
+        }
+    }
+    /// <summary>
+    /// OrmLite连接池类
+    /// </summary>
+    public static class DbConnFactory
+    {
+        static ConcurrentDictionary<string, OrmLiteConnectionFactory> factorys = new ConcurrentDictionary<string, OrmLiteConnectionFactory>();
+        /// <summary>
+        /// 打开连接
+        /// </summary>
+        /// <param name="db"></param>
+        /// <returns></returns>
+        public static SessionConnetion Open(string db)
+        {
+            if (DbSession.InDbTrasaction)
+            {
+                return new SessionConnetion(DbSession.Current.Conn);
+            }
+            var newconn = GetFactory(db).OpenDbConnection();
+            if (newconn.State != ConnectionState.Open)
+            {
+                newconn = GetFactory(db).OpenDbConnection();
+                if (newconn.State != ConnectionState.Open)
+                {
+                    throw new AggregateException("无法从连接池中获取已打开的连接");
+                }
+            }
+            return new SessionConnetion(newconn);
+        }
+        /// <summary>
+        /// 在连接池中获取连接，不存在时新建
+        /// </summary>
+        /// <param name="db"></param>
+        /// <returns></returns>
+        private static OrmLiteConnectionFactory GetFactory(string db)
+        {
+            if (factorys.TryGetValue(db, out OrmLiteConnectionFactory temp))
+            {
+                return temp;
+            }
+            var conn = ConfigurationManager.ConnectionStrings[db];
+            switch (conn.ProviderName)
+            {
+                case "MySql.Data.MySqlClient":
+                    temp = new OrmLiteConnectionFactory(conn.ConnectionString, MySqlDialect.Provider);
+                    temp.AutoDisposeConnection = true;
+                    break;
+                //case "System.Data.SqlClient":
+                //    temp = new OrmLiteConnectionFactory(conn.ConnectionString, SqlServerDialect.Provider);
+                //    break;
+                default:
+                    throw new Exception("不支持数据库:" + db);
+            }
+            factorys.TryAdd(db, temp);
+            return temp;
         }
     }
 }

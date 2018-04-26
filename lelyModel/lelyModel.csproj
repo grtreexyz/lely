@@ -84,7 +84,7 @@
     <Reference Include="System.EnterpriseServices" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="OrmLite.Core.ttinclude" />
+    <Content Include="entities\OrmLite.Core.ttinclude" />
     <None Include="packages.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
@@ -94,32 +94,30 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="OrmLite.Poco.tt">
+    <Content Include="entities\OrmLite.Poco.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>OrmLite.Poco.cs</LastGenOutput>
     </Content>
-    <Content Include="OrmLite.SP.tt">
+    <Content Include="entities\OrmLite.SP.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>OrmLite.SP.cs</LastGenOutput>
     </Content>
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OrmLite.Poco.cs">
+    <Compile Include="DataBase\DbBase.cs" />
+    <Compile Include="entities\OrmLite.Poco.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>OrmLite.Poco.tt</DependentUpon>
     </Compile>
-    <Compile Include="OrmLite.SP.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>OrmLite.SP.tt</DependentUpon>
-    </Compile>
+    <Compile Include="main\dbFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
